@@ -1,0 +1,70 @@
+package com.watchtower.android
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class ConfigYamlParserTest {
+
+    @Test
+    fun parsesAppConfigFromYaml() {
+        val yaml = """
+            api:
+              base_url: http://139.180.203.107:5008
+              api_key: gouge2014
+            poll:
+              interval_secs: 60
+              page_size: 100
+            ui:
+              notifications: true
+              sound: true
+            groups:
+            - id: group-1
+              name: BTC Main
+              symbol: BTCUSDT
+              periods:
+              - 10D
+              - W
+              - '720'
+              signal_types:
+              - tdMd
+              enabled: true
+            - id: group-2
+              name: Btc 2
+              symbol: BTCUSDT
+              periods:
+              - D
+              - '60'
+              signal_types:
+              - vegas
+              enabled: false
+        """.trimIndent()
+
+        val config = ConfigYamlParser.parse(yaml)
+
+        assertEquals("http://139.180.203.107:5008", config.baseUrl)
+        assertEquals("gouge2014", config.apiKey)
+        assertEquals(60, config.pollIntervalSecs)
+        assertEquals(100, config.pageSize)
+        assertTrue(config.notificationsEnabled)
+        assertTrue(config.soundEnabled)
+        assertEquals(2, config.groups.size)
+        assertEquals("BTC Main", config.groups[0].name)
+        assertEquals(listOf("10D", "W", "720"), config.groups[0].periods)
+        assertEquals(listOf("tdMd"), config.groups[0].signalTypes)
+        assertTrue(config.groups[0].enabled)
+        assertEquals("vegas", config.groups[1].signalTypes.single())
+        assertFalse(config.groups[1].enabled)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsConfigWithoutApiKey() {
+        ConfigYamlParser.parse(
+            """
+                api:
+                  base_url: http://localhost:5008
+            """.trimIndent()
+        )
+    }
+}
