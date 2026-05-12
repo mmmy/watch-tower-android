@@ -28,6 +28,9 @@ data class WatchTowerConfig(
     }
 }
 
+fun WatchTowerConfig.canManualRefresh(isRefreshing: Boolean): Boolean =
+    isComplete && !isRefreshing
+
 data class WatchGroup(
     val id: String,
     val name: String,

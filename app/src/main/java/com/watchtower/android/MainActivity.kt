@@ -42,6 +42,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +58,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.watchtower.android.ui.theme.WatchTowerTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -86,6 +88,8 @@ private fun WatchTowerApp(
     var config by remember { mutableStateOf(initialConfig) }
     var showConfig by remember { mutableStateOf(!initialConfig.isComplete) }
     var alerts by remember { mutableStateOf(emptyList<SignalAlert>()) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    val refreshScope = rememberCoroutineScope()
     var status by remember(config) {
         mutableStateOf(
             MonitorStatus(
@@ -97,9 +101,36 @@ private fun WatchTowerApp(
         )
     }
 
+    suspend fun refreshSignals() {
+        if (!config.isComplete || isRefreshing) return
+
+        isRefreshing = true
+        val fetchTime = currentClockText()
+        try {
+            val fetchedAlerts = signalApiClient.fetchSignals(config)
+            alerts = fetchedAlerts
+            status = MonitorStatus(
+                unreadCount = fetchedAlerts.count { !it.read },
+                lastFetchText = fetchTime,
+                lastSuccessText = fetchTime,
+                connectionState = ConnectionState.Success
+            )
+        } catch (_: Exception) {
+            status = MonitorStatus(
+                unreadCount = alerts.count { !it.read },
+                lastFetchText = fetchTime,
+                lastSuccessText = status.lastSuccessText,
+                connectionState = ConnectionState.Failed
+            )
+        } finally {
+            isRefreshing = false
+        }
+    }
+
     LaunchedEffect(config) {
         if (!config.isComplete) {
             alerts = emptyList()
+            isRefreshing = false
             status = MonitorStatus(
                 unreadCount = 0,
                 lastFetchText = null,
@@ -110,24 +141,7 @@ private fun WatchTowerApp(
         }
 
         while (true) {
-            val fetchTime = currentClockText()
-            try {
-                val fetchedAlerts = signalApiClient.fetchSignals(config)
-                alerts = fetchedAlerts
-                status = MonitorStatus(
-                    unreadCount = fetchedAlerts.count { !it.read },
-                    lastFetchText = fetchTime,
-                    lastSuccessText = fetchTime,
-                    connectionState = ConnectionState.Success
-                )
-            } catch (_: Exception) {
-                status = MonitorStatus(
-                    unreadCount = alerts.count { !it.read },
-                    lastFetchText = fetchTime,
-                    lastSuccessText = status.lastSuccessText,
-                    connectionState = ConnectionState.Failed
-                )
-            }
+            refreshSignals()
             delay(config.pollIntervalSecs.coerceAtLeast(1) * 1000L)
         }
     }
@@ -155,6 +169,12 @@ private fun WatchTowerApp(
         ) {
             StatusBar(
                 status = displayStatus,
+                canRefresh = config.canManualRefresh(isRefreshing),
+                onRefresh = {
+                    refreshScope.launch {
+                        refreshSignals()
+                    }
+                },
                 onOpenConfig = { showConfig = true }
             )
             if (showConfig || !config.isComplete) {
@@ -185,6 +205,8 @@ private fun WatchTowerApp(
 @Composable
 private fun StatusBar(
     status: MonitorStatus,
+    canRefresh: Boolean,
+    onRefresh: () -> Unit,
     onOpenConfig: () -> Unit
 ) {
     Column(
@@ -203,6 +225,12 @@ private fun StatusBar(
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold
             )
+            TextButton(
+                onClick = onRefresh,
+                enabled = canRefresh
+            ) {
+                Text(text = "刷新")
+            }
             TextButton(onClick = onOpenConfig) {
                 Text(text = "配置")
             }

@@ -65,4 +65,16 @@ class WatchTowerUiStateTest {
 
         assertEquals("未读 0 | 尚未刷新 | 需要配置", status.summaryText)
     }
+
+    @Test
+    fun manualRefreshIsAvailableOnlyWhenConfiguredAndIdle() {
+        val configured = WatchTowerConfig.default().copy(
+            baseUrl = "https://example.com",
+            apiKey = "secret"
+        )
+
+        assertTrue(configured.canManualRefresh(isRefreshing = false))
+        assertFalse(configured.canManualRefresh(isRefreshing = true))
+        assertFalse(WatchTowerConfig.default().canManualRefresh(isRefreshing = false))
+    }
 }
