@@ -42,8 +42,19 @@ data class WatchGroup(
 )
 
 data class WatchGroupView(
-    val showActiveOnly: Boolean = false
+    val showActiveOnly: Boolean = false,
+    val rowSortMode: WatchGroupRowSortMode = WatchGroupRowSortMode.ConfigOrder
 )
+
+enum class WatchGroupRowSortMode(val configValue: String) {
+    ConfigOrder("config_order"),
+    ProgressRecentFirst("progress_recent_first");
+
+    companion object {
+        fun fromConfigValue(value: String): WatchGroupRowSortMode =
+            entries.firstOrNull { it.configValue == value.trim() } ?: ConfigOrder
+    }
+}
 
 enum class SignalSide {
     Bullish,
@@ -102,11 +113,24 @@ fun WatchGroup.toVisibleTimelineRows(
     nowMillis: Long = System.currentTimeMillis()
 ): List<PeriodTimelineRow> {
     val rows = toTimelineRows(alerts = alerts, nowMillis = nowMillis)
-    return if (view.showActiveOnly) {
+    val filteredRows = if (view.showActiveOnly) {
         rows.filter { it.markers.isNotEmpty() }
     } else {
         rows
     }
+    return sortTimelineRows(filteredRows)
+}
+
+fun WatchGroup.sortTimelineRows(rows: List<PeriodTimelineRow>): List<PeriodTimelineRow> {
+    if (view.rowSortMode == WatchGroupRowSortMode.ConfigOrder) return rows
+
+    return rows.withIndex()
+        .sortedWith(
+            compareByDescending<IndexedValue<PeriodTimelineRow>> { (_, row) ->
+                row.normalizedMarkers.maxOfOrNull { marker -> marker.slot } ?: -1
+            }.thenBy { it.index }
+        )
+        .map { it.value }
 }
 
 const val TIMELINE_SLOT_COUNT = 60

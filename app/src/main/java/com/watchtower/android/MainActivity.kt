@@ -663,6 +663,28 @@ private fun GroupSettingsSheet(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            SwitchRow(
+                title = "最近信号优先",
+                checked = group.view.rowSortMode == WatchGroupRowSortMode.ProgressRecentFirst,
+                onCheckedChange = { checked ->
+                    onGroupChanged(
+                        group.copy(
+                            view = group.view.copy(
+                                rowSortMode = if (checked) {
+                                    WatchGroupRowSortMode.ProgressRecentFirst
+                                } else {
+                                    WatchGroupRowSortMode.ConfigOrder
+                                }
+                            )
+                        )
+                    )
+                }
+            )
+            Text(
+                text = "按时间条上最靠右的可见信号排序",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

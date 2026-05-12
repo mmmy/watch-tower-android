@@ -19,10 +19,10 @@ groups:
     symbol: "BTCUSDT"
     periods: ["10D", "W", "4D", "3D", "2D", "D", "720", "480", "360", "240", "180", "120", "90", "60", "45", "30", "20", "15", "10", "8", "5", "4", "3", "2", "1", "45S", "30S", "15S"]
     signal_types: ["vegas"]
-    row_sort_mode: "config_order"
     timeline_bars: 60
     view:
       show_active_only: true
+      row_sort_mode: "progress_recent_first"
     enabled: true
 
   - id: "group-2"
@@ -30,8 +30,8 @@ groups:
     symbol: "ETHUSDT"
     periods: ["10D", "W", "4D", "3D", "2D", "D", "720", "480", "360", "240", "180", "120", "90", "60", "45", "30", "20", "15", "10", "8", "5", "4", "3", "2", "1"]
     signal_types: ["divMacd"]
-    row_sort_mode: "config_order"
     timeline_bars: 60
     view:
       show_active_only: false
+      row_sort_mode: "config_order"
     enabled: true

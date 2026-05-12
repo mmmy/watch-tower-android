@@ -98,4 +98,49 @@ class TimelineUiStateTest {
 
         assertEquals(listOf("60", "15"), rows.map { it.period })
     }
+
+    @Test
+    fun progressRecentFirstSortsRowsByRightmostVisibleMarker() {
+        val group = WatchGroup(
+            id = "btc",
+            name = "BTC",
+            symbol = "BTCUSDT",
+            periods = listOf("60", "15", "5", "1"),
+            signalTypes = listOf("tdMd"),
+            enabled = true,
+            view = WatchGroupView(rowSortMode = WatchGroupRowSortMode.ProgressRecentFirst)
+        )
+        val rows = group.sortTimelineRows(
+            listOf(
+                PeriodTimelineRow("60", markers = listOf(TimelineMarker(slot = 58, side = SignalSide.Bullish))),
+                PeriodTimelineRow("15", markers = listOf(TimelineMarker(slot = 52, side = SignalSide.Bearish))),
+                PeriodTimelineRow("5", markers = emptyList()),
+                PeriodTimelineRow("1", markers = listOf(TimelineMarker(slot = 59, side = SignalSide.Bullish)))
+            )
+        )
+
+        assertEquals(listOf("1", "60", "15", "5"), rows.map { it.period })
+    }
+
+    @Test
+    fun progressRecentFirstKeepsConfiguredOrderForTiesAndEmptyRows() {
+        val group = WatchGroup(
+            id = "btc",
+            name = "BTC",
+            symbol = "BTCUSDT",
+            periods = listOf("60", "15", "5"),
+            signalTypes = listOf("tdMd"),
+            enabled = true,
+            view = WatchGroupView(rowSortMode = WatchGroupRowSortMode.ProgressRecentFirst)
+        )
+        val rows = group.sortTimelineRows(
+            listOf(
+                PeriodTimelineRow("60", markers = listOf(TimelineMarker(slot = 40, side = SignalSide.Bullish))),
+                PeriodTimelineRow("15", markers = listOf(TimelineMarker(slot = 40, side = SignalSide.Bearish))),
+                PeriodTimelineRow("5", markers = emptyList())
+            )
+        )
+
+        assertEquals(listOf("60", "15", "5"), rows.map { it.period })
+    }
 }

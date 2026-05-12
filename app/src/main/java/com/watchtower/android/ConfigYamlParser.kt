@@ -50,7 +50,8 @@ object ConfigYamlParser {
                     "periods" to group.periods,
                     "signal_types" to group.signalTypes,
                     "view" to mapOf(
-                        "show_active_only" to group.view.showActiveOnly
+                        "show_active_only" to group.view.showActiveOnly,
+                        "row_sort_mode" to group.view.rowSortMode.configValue
                     ),
                     "enabled" to group.enabled
                 )
@@ -80,7 +81,13 @@ object ConfigYamlParser {
                 enabled = group.booleanValue("enabled", defaultValue = true),
                 view = WatchGroupView(
                     showActiveOnly = group.mapValue("view")
-                        .booleanValue("show_active_only", defaultValue = false)
+                        .booleanValue("show_active_only", defaultValue = false),
+                    rowSortMode = WatchGroupRowSortMode.fromConfigValue(
+                        group.mapValue("view").stringValue(
+                            key = "row_sort_mode",
+                            defaultValue = group.stringValue("row_sort_mode", defaultValue = "config_order")
+                        )
+                    )
                 )
             )
         }
