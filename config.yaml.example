@@ -12,6 +12,7 @@ ui:
   always_on_top: true
   notifications: true
   sound: false
+  widget_group_id: "group-1"
 
 groups:
   - id: "group-1"

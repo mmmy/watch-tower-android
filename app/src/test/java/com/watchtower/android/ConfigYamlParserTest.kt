@@ -19,6 +19,7 @@ class ConfigYamlParserTest {
             ui:
               notifications: true
               sound: true
+              widget_group_id: group-2
             groups:
             - id: group-1
               name: BTC Main
@@ -53,6 +54,7 @@ class ConfigYamlParserTest {
         assertEquals(100, config.pageSize)
         assertTrue(config.notificationsEnabled)
         assertTrue(config.soundEnabled)
+        assertEquals("group-2", config.widgetGroupId)
         assertEquals(2, config.groups.size)
         assertEquals("BTC Main", config.groups[0].name)
         assertEquals(120, config.groups[0].timelineBars)
@@ -73,6 +75,7 @@ class ConfigYamlParserTest {
         val config = WatchTowerConfig.default().copy(
             baseUrl = "https://example.com",
             apiKey = "secret",
+            widgetGroupId = "btc",
             groups = listOf(
                 WatchGroup(
                     id = "btc",
@@ -93,6 +96,7 @@ class ConfigYamlParserTest {
         val reparsed = ConfigYamlParser.parse(ConfigYamlParser.dump(config))
 
         assertEquals(120, reparsed.groups.single().timelineBars)
+        assertEquals("btc", reparsed.widgetGroupId)
         assertTrue(reparsed.groups.single().view.showActiveOnly)
         assertEquals(WatchGroupRowSortMode.ProgressRecentFirst, reparsed.groups.single().view.rowSortMode)
     }

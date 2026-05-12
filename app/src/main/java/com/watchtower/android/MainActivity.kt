@@ -13,6 +13,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -31,6 +32,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -60,6 +63,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.watchtower.android.ui.theme.WatchTowerTheme
+import com.watchtower.android.widget.WatchTowerWidgetProvider
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -94,6 +98,7 @@ private fun WatchTowerApp(
     var isRefreshing by remember { mutableStateOf(false) }
     var isMarkingRead by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val widgetSignalSnapshotStore = remember { WidgetSignalSnapshotStore(context.applicationContext) }
     val refreshScope = rememberCoroutineScope()
     var status by remember(config) {
         mutableStateOf(
@@ -114,12 +119,19 @@ private fun WatchTowerApp(
         try {
             val fetchedAlerts = signalApiClient.fetchSignals(config)
             alerts = fetchedAlerts
+            widgetSignalSnapshotStore.save(
+                WidgetSignalSnapshot(
+                    alerts = fetchedAlerts,
+                    updatedAtMillis = System.currentTimeMillis()
+                )
+            )
             status = MonitorStatus(
                 unreadCount = fetchedAlerts.count { !it.read },
                 lastFetchText = fetchTime,
                 lastSuccessText = fetchTime,
                 connectionState = ConnectionState.Success
             )
+            WatchTowerWidgetProvider.refreshAll(context.applicationContext)
         } catch (_: Exception) {
             status = MonitorStatus(
                 unreadCount = alerts.count { !it.read },
@@ -147,7 +159,14 @@ private fun WatchTowerApp(
             if (allUpdated) {
                 val updatedAlerts = alerts.withReadStatus(unreadTargets, read = true)
                 alerts = updatedAlerts
+                widgetSignalSnapshotStore.save(
+                    WidgetSignalSnapshot(
+                        alerts = updatedAlerts,
+                        updatedAtMillis = System.currentTimeMillis()
+                    )
+                )
                 status = status.copy(unreadCount = updatedAlerts.count { !it.read })
+                WatchTowerWidgetProvider.refreshAll(context.applicationContext)
                 Toast.makeText(context, "已标记为已读", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(context, "设置已读失败", Toast.LENGTH_SHORT).show()
@@ -162,6 +181,8 @@ private fun WatchTowerApp(
     LaunchedEffect(config) {
         if (!config.isComplete) {
             alerts = emptyList()
+            widgetSignalSnapshotStore.save(WidgetSignalSnapshot.empty())
+            WatchTowerWidgetProvider.refreshAll(context.applicationContext)
             isRefreshing = false
             status = MonitorStatus(
                 unreadCount = 0,
@@ -222,6 +243,7 @@ private fun WatchTowerApp(
                     onConfigSaved = {
                         config = it
                         onPersistConfig(it)
+                        WatchTowerWidgetProvider.refreshAll(context.applicationContext)
                         showConfig = !it.isComplete
                     }
                 )
@@ -237,6 +259,7 @@ private fun WatchTowerApp(
                     onConfigChanged = {
                         config = it
                         onPersistConfig(it)
+                        WatchTowerWidgetProvider.refreshAll(context.applicationContext)
                     }
                 )
             }
@@ -353,7 +376,11 @@ private fun ConfigScreen(
     var pageSizeText by remember(config) { mutableStateOf(config.pageSize.toString()) }
     var notificationsEnabled by remember(config) { mutableStateOf(config.notificationsEnabled) }
     var soundEnabled by remember(config) { mutableStateOf(config.soundEnabled) }
+    var widgetGroupId by remember(config) {
+        mutableStateOf(config.resolvedWidgetGroupId())
+    }
     var importMessage by remember { mutableStateOf<String?>(null) }
+    val widgetGroups = config.groups.filter { it.enabled }
 
     val yamlPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -378,6 +405,7 @@ private fun ConfigScreen(
         pageSize = pageSizeText.toIntOrNull()?.coerceIn(1, 100) ?: 100,
         notificationsEnabled = notificationsEnabled,
         soundEnabled = soundEnabled,
+        widgetGroupId = widgetGroupId,
         groups = config.groups
     )
 
@@ -498,6 +526,16 @@ private fun ConfigScreen(
         }
 
         item {
+            ConfigSection(title = "小组件") {
+                WidgetGroupSelector(
+                    groups = widgetGroups,
+                    selectedGroupId = widgetGroupId,
+                    onSelectedGroupIdChanged = { widgetGroupId = it }
+                )
+            }
+        }
+
+        item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -561,6 +599,53 @@ private fun SwitchRow(
             checked = checked,
             onCheckedChange = onCheckedChange
         )
+    }
+}
+
+@Composable
+private fun WidgetGroupSelector(
+    groups: List<WatchGroup>,
+    selectedGroupId: String?,
+    onSelectedGroupIdChanged: (String?) -> Unit
+) {
+    val selectedGroup = groups.firstOrNull { it.id == selectedGroupId }
+    var expanded by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "显示分组",
+            style = MaterialTheme.typography.bodyLarge
+        )
+        Box {
+            TextButton(
+                onClick = { expanded = true },
+                enabled = groups.isNotEmpty()
+            ) {
+                Text(
+                    text = selectedGroup?.name ?: "暂无可选分组",
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                groups.forEach { group ->
+                    DropdownMenuItem(
+                        text = { Text(group.name) },
+                        onClick = {
+                            onSelectedGroupIdChanged(group.id)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
     }
 }
 

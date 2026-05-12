@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Watch Tower</string>
-    <string name="widget_title">Watch Tower Widget</string>
+    <string name="widget_title">Watch Tower</string>
     <string name="widget_placeholder_subtitle">主运行时与小组件骨架已接通</string>
     <string name="widget_placeholder_status">最后刷新 %1$s</string>
 </resources>
-

@@ -26,6 +26,7 @@ class WatchTowerConfigStoreTest {
             pageSize = 80,
             notificationsEnabled = false,
             soundEnabled = true,
+            widgetGroupId = "group-1",
             groups = listOf(
                 WatchGroup(
                     id = "group-1",

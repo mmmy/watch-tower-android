@@ -24,6 +24,7 @@ object ConfigYamlParser {
             pageSize = poll.intValue("page_size", defaultValue = 100).coerceIn(1, 100),
             notificationsEnabled = ui.booleanValue("notifications", defaultValue = true),
             soundEnabled = ui.booleanValue("sound", defaultValue = false),
+            widgetGroupId = ui.stringValue("widget_group_id").ifBlank { null },
             groups = root.groupsValue()
         )
     }
@@ -40,7 +41,8 @@ object ConfigYamlParser {
             ),
             "ui" to mapOf(
                 "notifications" to config.notificationsEnabled,
-                "sound" to config.soundEnabled
+                "sound" to config.soundEnabled,
+                "widget_group_id" to config.widgetGroupId
             ),
             "groups" to config.groups.map { group ->
                 mapOf(

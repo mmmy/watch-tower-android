@@ -7,6 +7,7 @@ data class WatchTowerConfig(
     val pageSize: Int,
     val notificationsEnabled: Boolean,
     val soundEnabled: Boolean,
+    val widgetGroupId: String?,
     val groups: List<WatchGroup>
 ) {
     val isComplete: Boolean
@@ -23,6 +24,7 @@ data class WatchTowerConfig(
             pageSize = 100,
             notificationsEnabled = true,
             soundEnabled = false,
+            widgetGroupId = null,
             groups = emptyList()
         )
     }
@@ -177,13 +179,21 @@ private fun SignalAlert.toTimelineMarker(
     nowMillis: Long,
     slotCount: Int
 ): TimelineMarker? {
-    val periodMillis = periodDurationMillis(period) ?: return null
-    val barsAgo = ((nowMillis - triggerTimeMillis).coerceAtLeast(0L) / periodMillis).toInt()
+    val barsAgo = barsAgoForPeriod(period, triggerTimeMillis, nowMillis) ?: return null
     if (barsAgo >= slotCount) return null
     return TimelineMarker(
         slot = slotCount - 1 - barsAgo,
         side = side
     )
+}
+
+fun barsAgoForPeriod(
+    period: String,
+    triggerTimeMillis: Long,
+    nowMillis: Long
+): Int? {
+    val periodMillis = periodDurationMillis(period) ?: return null
+    return ((nowMillis - triggerTimeMillis).coerceAtLeast(0L) / periodMillis).toInt()
 }
 
 fun periodDurationMillis(period: String): Long? {
