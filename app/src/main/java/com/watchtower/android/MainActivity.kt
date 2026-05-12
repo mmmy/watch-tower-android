@@ -520,9 +520,7 @@ private fun GroupTimelinePanel(
     alerts: List<SignalAlert>,
     onOpenSettings: (() -> Unit)?
 ) {
-    val allRows = group.toTimelineRows(alerts)
     val visibleRows = group.toVisibleTimelineRows(alerts)
-    val activePeriodCount = allRows.count { it.markers.isNotEmpty() }
 
     Card(
         colors = CardDefaults.cardColors(
@@ -538,8 +536,6 @@ private fun GroupTimelinePanel(
             GroupHeader(
                 group = group,
                 unreadCount = group.unreadCount(alerts),
-                activePeriodCount = activePeriodCount,
-                totalPeriodCount = group.periods.size,
                 onOpenSettings = onOpenSettings
             )
             if (visibleRows.isEmpty() && group.view.showActiveOnly && group.periods.isNotEmpty()) {
@@ -561,8 +557,6 @@ private fun GroupTimelinePanel(
 private fun GroupHeader(
     group: WatchGroup,
     unreadCount: Int,
-    activePeriodCount: Int,
-    totalPeriodCount: Int,
     onOpenSettings: (() -> Unit)?
 ) {
     Row(
@@ -591,13 +585,6 @@ private fun GroupHeader(
                     style = MaterialTheme.typography.labelSmall,
                     color = Color(0xFFDC2626),
                     fontWeight = FontWeight.SemiBold
-                )
-            }
-            if (totalPeriodCount > 0) {
-                Text(
-                    text = "活跃 $activePeriodCount/$totalPeriodCount",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
