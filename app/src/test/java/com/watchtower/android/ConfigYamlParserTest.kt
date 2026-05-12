@@ -23,6 +23,8 @@ class ConfigYamlParserTest {
             - id: group-1
               name: BTC Main
               symbol: BTCUSDT
+              view:
+                show_active_only: true
               periods:
               - 10D
               - W
@@ -53,9 +55,34 @@ class ConfigYamlParserTest {
         assertEquals("BTC Main", config.groups[0].name)
         assertEquals(listOf("10D", "W", "720"), config.groups[0].periods)
         assertEquals(listOf("tdMd"), config.groups[0].signalTypes)
+        assertTrue(config.groups[0].view.showActiveOnly)
         assertTrue(config.groups[0].enabled)
         assertEquals("vegas", config.groups[1].signalTypes.single())
+        assertFalse(config.groups[1].view.showActiveOnly)
         assertFalse(config.groups[1].enabled)
+    }
+
+    @Test
+    fun dumpsGroupViewSettingsToYaml() {
+        val config = WatchTowerConfig.default().copy(
+            baseUrl = "https://example.com",
+            apiKey = "secret",
+            groups = listOf(
+                WatchGroup(
+                    id = "btc",
+                    name = "BTC Main",
+                    symbol = "BTCUSDT",
+                    periods = listOf("60"),
+                    signalTypes = listOf("vegas"),
+                    enabled = true,
+                    view = WatchGroupView(showActiveOnly = true)
+                )
+            )
+        )
+
+        val reparsed = ConfigYamlParser.parse(ConfigYamlParser.dump(config))
+
+        assertTrue(reparsed.groups.single().view.showActiveOnly)
     }
 
     @Test(expected = IllegalArgumentException::class)

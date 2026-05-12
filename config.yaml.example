@@ -21,6 +21,8 @@ groups:
     signal_types: ["vegas"]
     row_sort_mode: "config_order"
     timeline_bars: 60
+    view:
+      show_active_only: true
     enabled: true
 
   - id: "group-2"
@@ -30,4 +32,6 @@ groups:
     signal_types: ["divMacd"]
     row_sort_mode: "config_order"
     timeline_bars: 60
+    view:
+      show_active_only: false
     enabled: true

@@ -49,6 +49,9 @@ object ConfigYamlParser {
                     "symbol" to group.symbol,
                     "periods" to group.periods,
                     "signal_types" to group.signalTypes,
+                    "view" to mapOf(
+                        "show_active_only" to group.view.showActiveOnly
+                    ),
                     "enabled" to group.enabled
                 )
             }
@@ -74,7 +77,11 @@ object ConfigYamlParser {
                 symbol = group.stringValue("symbol"),
                 periods = group.stringListValue("periods"),
                 signalTypes = group.stringListValue("signal_types"),
-                enabled = group.booleanValue("enabled", defaultValue = true)
+                enabled = group.booleanValue("enabled", defaultValue = true),
+                view = WatchGroupView(
+                    showActiveOnly = group.mapValue("view")
+                        .booleanValue("show_active_only", defaultValue = false)
+                )
             )
         }
     }

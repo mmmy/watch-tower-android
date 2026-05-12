@@ -28,8 +28,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -169,7 +171,11 @@ private fun WatchTowerApp(
             } else {
                 DashboardScreen(
                     config = config,
-                    alerts = alerts
+                    alerts = alerts,
+                    onConfigChanged = {
+                        config = it
+                        onPersistConfig(it)
+                    }
                 )
             }
         }
@@ -433,8 +439,10 @@ private fun SwitchRow(
 @Composable
 private fun DashboardScreen(
     config: WatchTowerConfig,
-    alerts: List<SignalAlert>
+    alerts: List<SignalAlert>,
+    onConfigChanged: (WatchTowerConfig) -> Unit
 ) {
+    var settingsGroupId by remember { mutableStateOf<String?>(null) }
     val groups = config.groups.ifEmpty {
         listOf(
             WatchGroup("placeholder-1", "BTC Main", "BTCUSDT", emptyList(), emptyList(), true),
@@ -450,17 +458,44 @@ private fun DashboardScreen(
         items(groups) { group ->
             GroupTimelinePanel(
                 group = group,
-                alerts = alerts
+                alerts = alerts,
+                onOpenSettings = if (config.groups.any { it.id == group.id }) {
+                    { settingsGroupId = group.id }
+                } else {
+                    null
+                }
             )
         }
+    }
+
+    val settingsGroup = config.groups.firstOrNull { it.id == settingsGroupId }
+    if (settingsGroup != null) {
+        GroupSettingsSheet(
+            group = settingsGroup,
+            onDismissRequest = { settingsGroupId = null },
+            onGroupChanged = { updatedGroup ->
+                onConfigChanged(
+                    config.copy(
+                        groups = config.groups.map { group ->
+                            if (group.id == updatedGroup.id) updatedGroup else group
+                        }
+                    )
+                )
+            }
+        )
     }
 }
 
 @Composable
 private fun GroupTimelinePanel(
     group: WatchGroup,
-    alerts: List<SignalAlert>
+    alerts: List<SignalAlert>,
+    onOpenSettings: (() -> Unit)?
 ) {
+    val allRows = group.toTimelineRows(alerts)
+    val visibleRows = group.toVisibleTimelineRows(alerts)
+    val activePeriodCount = allRows.count { it.markers.isNotEmpty() }
+
     Card(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -474,9 +509,20 @@ private fun GroupTimelinePanel(
         ) {
             GroupHeader(
                 group = group,
-                unreadCount = group.unreadCount(alerts)
+                unreadCount = group.unreadCount(alerts),
+                activePeriodCount = activePeriodCount,
+                totalPeriodCount = group.periods.size,
+                onOpenSettings = onOpenSettings
             )
-            group.toTimelineRows(alerts).forEach { row ->
+            if (visibleRows.isEmpty() && group.view.showActiveOnly && group.periods.isNotEmpty()) {
+                Text(
+                    text = "当前无活跃警报",
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            visibleRows.forEach { row ->
                 PeriodTimelineRowView(row = row)
             }
         }
@@ -486,7 +532,10 @@ private fun GroupTimelinePanel(
 @Composable
 private fun GroupHeader(
     group: WatchGroup,
-    unreadCount: Int
+    unreadCount: Int,
+    activePeriodCount: Int,
+    totalPeriodCount: Int,
+    onOpenSettings: (() -> Unit)?
 ) {
     Row(
         modifier = Modifier
@@ -516,6 +565,13 @@ private fun GroupHeader(
                     fontWeight = FontWeight.SemiBold
                 )
             }
+            if (totalPeriodCount > 0) {
+                Text(
+                    text = "活跃 $activePeriodCount/$totalPeriodCount",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         Text(
             text = group.symbol,
@@ -527,6 +583,56 @@ private fun GroupHeader(
             Text(
                 text = group.signalTypes.joinToString("/"),
                 style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (onOpenSettings != null) {
+            TextButton(
+                onClick = onOpenSettings,
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+            ) {
+                Text(
+                    text = "设置",
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GroupSettingsSheet(
+    group: WatchGroup,
+    onDismissRequest: () -> Unit,
+    onGroupChanged: (WatchGroup) -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismissRequest) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                text = "${group.name} 设置",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            SwitchRow(
+                title = "只显示有信号级别",
+                checked = group.view.showActiveOnly,
+                onCheckedChange = { checked ->
+                    onGroupChanged(
+                        group.copy(
+                            view = group.view.copy(showActiveOnly = checked)
+                        )
+                    )
+                }
+            )
+            Text(
+                text = "隐藏当前没有可见警报的级别",
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

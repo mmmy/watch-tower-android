@@ -58,4 +58,44 @@ class TimelineUiStateTest {
 
         assertEquals(1, group.unreadCount(alerts))
     }
+
+    @Test
+    fun activeOnlyViewShowsRowsWithVisibleMarkersOnly() {
+        val nowMillis = 60L * 60 * 1000
+        val group = WatchGroup(
+            id = "btc",
+            name = "BTC",
+            symbol = "BTCUSDT",
+            periods = listOf("60", "15", "5"),
+            signalTypes = listOf("tdMd"),
+            enabled = true,
+            view = WatchGroupView(showActiveOnly = true)
+        )
+        val alerts = listOf(
+            SignalAlert("BTCUSDT", "60", "tdMd", SignalSide.Bullish, nowMillis, read = false),
+            SignalAlert("BTCUSDT", "15", "tdMd", SignalSide.Bearish, nowMillis - 61L * 15 * 60 * 1000, read = false),
+            SignalAlert("ETHUSDT", "5", "tdMd", SignalSide.Bullish, nowMillis, read = false)
+        )
+
+        val rows = group.toVisibleTimelineRows(alerts, nowMillis)
+
+        assertEquals(listOf("60"), rows.map { it.period })
+    }
+
+    @Test
+    fun activeOnlyViewKeepsConfiguredRowsWhenDisabled() {
+        val group = WatchGroup(
+            id = "btc",
+            name = "BTC",
+            symbol = "BTCUSDT",
+            periods = listOf("60", "15"),
+            signalTypes = listOf("tdMd"),
+            enabled = true,
+            view = WatchGroupView(showActiveOnly = false)
+        )
+
+        val rows = group.toVisibleTimelineRows(alerts = emptyList(), nowMillis = 0L)
+
+        assertEquals(listOf("60", "15"), rows.map { it.period })
+    }
 }

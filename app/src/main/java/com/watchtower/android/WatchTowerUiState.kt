@@ -34,7 +34,12 @@ data class WatchGroup(
     val symbol: String,
     val periods: List<String>,
     val signalTypes: List<String>,
-    val enabled: Boolean
+    val enabled: Boolean,
+    val view: WatchGroupView = WatchGroupView()
+)
+
+data class WatchGroupView(
+    val showActiveOnly: Boolean = false
 )
 
 enum class SignalSide {
@@ -88,6 +93,18 @@ fun WatchGroup.toTimelineRows(
             unread = visibleMarkers.isNotEmpty() && periodAlerts.any { !it.read }
         )
     }
+
+fun WatchGroup.toVisibleTimelineRows(
+    alerts: List<SignalAlert>,
+    nowMillis: Long = System.currentTimeMillis()
+): List<PeriodTimelineRow> {
+    val rows = toTimelineRows(alerts = alerts, nowMillis = nowMillis)
+    return if (view.showActiveOnly) {
+        rows.filter { it.markers.isNotEmpty() }
+    } else {
+        rows
+    }
+}
 
 const val TIMELINE_SLOT_COUNT = 60
 
