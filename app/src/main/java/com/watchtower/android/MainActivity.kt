@@ -956,7 +956,7 @@ private fun TimelineRail(
             size = size
         )
 
-        val markerWidth = (size.width / slotCount).coerceAtLeast(4f)
+        val markerWidth = (size.width / slotCount).coerceAtLeast(8f)
         markers.forEach { marker ->
             val x = if (slotCount <= 1) {
                 0f
