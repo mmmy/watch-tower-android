@@ -50,6 +50,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.watchtower.android.ui.theme.WatchTowerTheme
@@ -471,7 +472,10 @@ private fun GroupTimelinePanel(
                 .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(1.dp)
         ) {
-            GroupHeader(group = group)
+            GroupHeader(
+                group = group,
+                unreadCount = group.unreadCount(alerts)
+            )
             group.toTimelineRows(alerts).forEach { row ->
                 PeriodTimelineRowView(row = row)
             }
@@ -480,7 +484,10 @@ private fun GroupTimelinePanel(
 }
 
 @Composable
-private fun GroupHeader(group: WatchGroup) {
+private fun GroupHeader(
+    group: WatchGroup,
+    unreadCount: Int
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -488,12 +495,28 @@ private fun GroupHeader(group: WatchGroup) {
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = group.name,
+        Row(
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold
-        )
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = group.name,
+                modifier = Modifier.weight(1f, fill = false),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (unreadCount > 0) {
+                Text(
+                    text = "未读 $unreadCount",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFFDC2626),
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
         Text(
             text = group.symbol,
             style = MaterialTheme.typography.labelMedium,

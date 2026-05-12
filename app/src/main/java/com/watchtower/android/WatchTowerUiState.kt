@@ -61,6 +61,14 @@ data class PeriodTimelineRow(
 fun WatchGroup.toTimelineRows(): List<PeriodTimelineRow> =
     toTimelineRows(alerts = emptyList())
 
+fun WatchGroup.unreadCount(alerts: List<SignalAlert>): Int =
+    alerts.count { alert ->
+        alert.symbol == symbol &&
+            alert.period in periods &&
+            alert.signalType in signalTypes &&
+            !alert.read
+    }
+
 fun WatchGroup.toTimelineRows(
     alerts: List<SignalAlert>,
     nowMillis: Long = System.currentTimeMillis()
