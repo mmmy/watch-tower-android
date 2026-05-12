@@ -51,7 +51,7 @@ class WatchTowerUiStateTest {
             connectionState = ConnectionState.Success
         )
 
-        assertEquals("未读 3 | 刚刚更新 12:30 | 成功", status.summaryText)
+        assertEquals("未读 3 | 刚刚 12:30 | 成功", status.summaryText)
     }
 
     @Test

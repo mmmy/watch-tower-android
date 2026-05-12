@@ -194,7 +194,7 @@ data class MonitorStatus(
 ) {
     val summaryText: String
         get() {
-            val fetchText = lastFetchText?.let { "刚刚更新 $it" } ?: "尚未刷新"
+            val fetchText = lastFetchText?.let { "刚刚 $it" } ?: "尚未刷新"
             return "未读 $unreadCount | $fetchText | ${connectionState.label}"
         }
 }

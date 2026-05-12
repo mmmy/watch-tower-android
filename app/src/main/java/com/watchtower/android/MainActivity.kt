@@ -21,9 +21,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -209,6 +211,30 @@ private fun StatusBar(
     onRefresh: () -> Unit,
     onOpenConfig: () -> Unit
 ) {
+    val unreadContainerColor = if (status.unreadCount > 0) {
+        Color(0xFFFDE68A)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    val unreadTextColor = if (status.unreadCount > 0) {
+        Color(0xFF713F12)
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val fetchText = status.lastFetchText?.let { "刚刚 $it" } ?: "尚未刷新"
+    val statusLabel = when (status.connectionState) {
+        ConnectionState.NotConfigured -> "需要配置"
+        ConnectionState.Idle -> "待机"
+        ConnectionState.Success -> "成功"
+        ConnectionState.Failed -> "失败"
+    }
+    val statusColor = when (status.connectionState) {
+        ConnectionState.NotConfigured -> Color(0xFFD97706)
+        ConnectionState.Idle -> MaterialTheme.colorScheme.onSurfaceVariant
+        ConnectionState.Success -> Color(0xFF16A34A)
+        ConnectionState.Failed -> Color(0xFFDC2626)
+    }
+
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -219,12 +245,44 @@ private fun StatusBar(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = status.summaryText,
+            Row(
                 modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold
-            )
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "未读 ${status.unreadCount}",
+                    modifier = Modifier
+                        .background(unreadContainerColor, RoundedCornerShape(999.dp))
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = unreadTextColor,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
+                )
+                Text(
+                    text = fetchText,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Canvas(modifier = Modifier.size(7.dp)) {
+                        drawCircle(color = statusColor)
+                    }
+                    Text(
+                        text = statusLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
+                    )
+                }
+            }
             TextButton(
                 onClick = onRefresh,
                 enabled = canRefresh
@@ -531,7 +589,7 @@ private fun GroupTimelinePanel(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(1.dp)
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             GroupHeader(
                 group = group,
@@ -723,7 +781,7 @@ private fun PeriodTimelineRowView(row: PeriodTimelineRow) {
             timelineBars = row.timelineBars,
             modifier = Modifier
                 .weight(1f)
-                .height(16.dp)
+                .height(18.dp)
         )
     }
 }
