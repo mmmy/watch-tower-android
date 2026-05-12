@@ -611,6 +611,13 @@ private fun GroupHeader(
                     style = MaterialTheme.typography.labelSmall
                 )
             }
+            Text(
+                text = group.settingsSummaryText,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

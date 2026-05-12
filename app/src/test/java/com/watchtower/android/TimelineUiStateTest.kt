@@ -105,6 +105,25 @@ class TimelineUiStateTest {
     }
 
     @Test
+    fun groupSettingsSummaryShowsTimelineBarsAndRecentSortOnly() {
+        val group = WatchGroup(
+            id = "btc",
+            name = "BTC",
+            symbol = "BTCUSDT",
+            periods = listOf("60"),
+            signalTypes = listOf("tdMd"),
+            enabled = true,
+            timelineBars = 60,
+            view = WatchGroupView(
+                showActiveOnly = true,
+                rowSortMode = WatchGroupRowSortMode.ProgressRecentFirst
+            )
+        )
+
+        assertEquals("60K(近)", group.settingsSummaryText)
+    }
+
+    @Test
     fun activeOnlyViewKeepsConfiguredRowsWhenDisabled() {
         val group = WatchGroup(
             id = "btc",

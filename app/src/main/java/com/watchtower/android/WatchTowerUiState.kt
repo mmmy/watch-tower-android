@@ -90,6 +90,12 @@ fun WatchGroup.unreadCount(alerts: List<SignalAlert>): Int =
             !alert.read
     }
 
+val WatchGroup.settingsSummaryText: String
+    get() {
+        val recentSuffix = if (view.rowSortMode == WatchGroupRowSortMode.ProgressRecentFirst) "(近)" else ""
+        return "${coerceTimelineBars(timelineBars)}K$recentSuffix"
+    }
+
 fun WatchGroup.toTimelineRows(
     alerts: List<SignalAlert>,
     nowMillis: Long = System.currentTimeMillis()
