@@ -1,6 +1,7 @@
 package com.watchtower.android
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -57,6 +58,42 @@ class TimelineUiStateTest {
         )
 
         assertEquals(1, group.unreadCount(alerts))
+    }
+
+    @Test
+    fun filtersUnreadAlertsForGlobalGroupAndPeriodMarkReadActions() {
+        val group = WatchGroup(
+            id = "btc",
+            name = "BTC",
+            symbol = "BTCUSDT",
+            periods = listOf("60", "15"),
+            signalTypes = listOf("tdMd", "vegas"),
+            enabled = true
+        )
+        val btc60Td = SignalAlert("BTCUSDT", "60", "tdMd", SignalSide.Bullish, 1L, read = false)
+        val btc15Vegas = SignalAlert("BTCUSDT", "15", "vegas", SignalSide.Bearish, 2L, read = false)
+        val btc5Td = SignalAlert("BTCUSDT", "5", "tdMd", SignalSide.Bullish, 3L, read = false)
+        val eth60Td = SignalAlert("ETHUSDT", "60", "tdMd", SignalSide.Bullish, 4L, read = false)
+        val readBtc60 = SignalAlert("BTCUSDT", "60", "tdMd", SignalSide.Bearish, 5L, read = true)
+        val alerts = listOf(btc60Td, btc15Vegas, btc5Td, eth60Td, readBtc60)
+
+        assertEquals(listOf(btc60Td, btc15Vegas, btc5Td, eth60Td), alerts.unreadAlerts())
+        assertEquals(listOf(btc60Td, btc15Vegas), group.unreadAlerts(alerts))
+        assertEquals(listOf(btc60Td), group.unreadAlerts(alerts, period = "60"))
+    }
+
+    @Test
+    fun marksTargetsReadLocallyBySignalKey() {
+        val btc60Td = SignalAlert("BTCUSDT", "60", "tdMd", SignalSide.Bullish, 1L, read = false)
+        val newerBtc60Td = SignalAlert("BTCUSDT", "60", "tdMd", SignalSide.Bearish, 2L, read = false)
+        val btc15Td = SignalAlert("BTCUSDT", "15", "tdMd", SignalSide.Bullish, 3L, read = false)
+        val alerts = listOf(btc60Td, newerBtc60Td, btc15Td)
+
+        val updated = alerts.withReadStatus(targets = listOf(btc60Td), read = true)
+
+        assertTrue(updated[0].read)
+        assertTrue(updated[1].read)
+        assertFalse(updated[2].read)
     }
 
     @Test

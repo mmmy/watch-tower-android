@@ -44,6 +44,30 @@ data class SignalRequest(
     }
 }
 
+data class SignalReadStatusRequest(
+    val symbol: String,
+    val period: String,
+    val signalType: String,
+    val read: Boolean
+) {
+    fun toJson(): String = JSONObject()
+        .put("symbol", symbol)
+        .put("period", period)
+        .put("signalType", signalType)
+        .put("read", read)
+        .toString()
+
+    companion object {
+        fun fromAlert(alert: SignalAlert, read: Boolean): SignalReadStatusRequest =
+            SignalReadStatusRequest(
+                symbol = alert.symbol,
+                period = alert.period,
+                signalType = alert.signalType,
+                read = read
+            )
+    }
+}
+
 object SignalResponseParser {
     fun parse(response: String): List<SignalAlert> {
         val root = JSONObject(response)
@@ -115,4 +139,38 @@ class SignalApiClient {
             connection.disconnect()
         }
     }
+
+    suspend fun setReadStatus(config: WatchTowerConfig, alert: SignalAlert, read: Boolean): Boolean =
+        withContext(Dispatchers.IO) {
+            val request = SignalReadStatusRequest.fromAlert(alert, read = read)
+            val endpoint = "${config.baseUrl.trimEnd('/')}/api/open/watch-list/symbol-alert/read-status"
+            val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 10_000
+                readTimeout = 10_000
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                setRequestProperty("Accept", "application/json")
+                setRequestProperty("x-api-key", config.apiKey)
+            }
+
+            try {
+                connection.outputStream.use { output ->
+                    output.write(request.toJson().toByteArray(Charsets.UTF_8))
+                }
+                val responseCode = connection.responseCode
+                val stream = if (responseCode in 200..299) {
+                    connection.inputStream
+                } else {
+                    connection.errorStream
+                }
+                val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+                if (responseCode !in 200..299) {
+                    throw IllegalStateException("HTTP $responseCode")
+                }
+                body.trim().equals("true", ignoreCase = true)
+            } finally {
+                connection.disconnect()
+            }
+        }
 }

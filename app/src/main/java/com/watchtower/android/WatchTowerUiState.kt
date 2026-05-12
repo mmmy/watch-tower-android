@@ -82,13 +82,34 @@ data class PeriodTimelineRow(
 fun WatchGroup.toTimelineRows(): List<PeriodTimelineRow> =
     toTimelineRows(alerts = emptyList())
 
-fun WatchGroup.unreadCount(alerts: List<SignalAlert>): Int =
-    alerts.count { alert ->
+fun List<SignalAlert>.unreadAlerts(): List<SignalAlert> =
+    filter { alert -> !alert.read }
+
+fun WatchGroup.unreadAlerts(alerts: List<SignalAlert>, period: String? = null): List<SignalAlert> =
+    alerts.filter { alert ->
         alert.symbol == symbol &&
             alert.period in periods &&
             alert.signalType in signalTypes &&
+            (period == null || alert.period == period) &&
             !alert.read
     }
+
+fun List<SignalAlert>.withReadStatus(targets: List<SignalAlert>, read: Boolean): List<SignalAlert> =
+    map { alert ->
+        if (targets.any { target -> alert.hasSameSignalKey(target) }) {
+            alert.copy(read = read)
+        } else {
+            alert
+        }
+    }
+
+fun WatchGroup.unreadCount(alerts: List<SignalAlert>): Int =
+    unreadAlerts(alerts).size
+
+private fun SignalAlert.hasSameSignalKey(other: SignalAlert): Boolean =
+    symbol == other.symbol &&
+        period == other.period &&
+        signalType == other.signalType
 
 val WatchGroup.settingsSummaryText: String
     get() {

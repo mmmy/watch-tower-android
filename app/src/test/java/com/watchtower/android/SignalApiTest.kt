@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.json.JSONObject
 
 class SignalApiTest {
 
@@ -79,6 +80,25 @@ class SignalApiTest {
         assertFalse(alerts[0].read)
         assertEquals(SignalSide.Bearish, alerts[1].side)
         assertTrue(alerts[1].read)
+    }
+
+    @Test
+    fun serializesReadStatusRequestFromAlert() {
+        val alert = SignalAlert(
+            symbol = "BTCUSDT",
+            period = "60",
+            signalType = "tdMd",
+            side = SignalSide.Bullish,
+            triggerTimeMillis = 1710003600000L,
+            read = false
+        )
+
+        val json = JSONObject(SignalReadStatusRequest.fromAlert(alert, read = true).toJson())
+
+        assertEquals("BTCUSDT", json.getString("symbol"))
+        assertEquals("60", json.getString("period"))
+        assertEquals("tdMd", json.getString("signalType"))
+        assertTrue(json.getBoolean("read"))
     }
 
     @Test

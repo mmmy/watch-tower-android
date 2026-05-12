@@ -3,6 +3,7 @@ package com.watchtower.android
 import android.content.Context
 import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -10,7 +11,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -91,6 +92,8 @@ private fun WatchTowerApp(
     var showConfig by remember { mutableStateOf(!initialConfig.isComplete) }
     var alerts by remember { mutableStateOf(emptyList<SignalAlert>()) }
     var isRefreshing by remember { mutableStateOf(false) }
+    var isMarkingRead by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     val refreshScope = rememberCoroutineScope()
     var status by remember(config) {
         mutableStateOf(
@@ -126,6 +129,33 @@ private fun WatchTowerApp(
             )
         } finally {
             isRefreshing = false
+        }
+    }
+
+    suspend fun markAlertsRead(targets: List<SignalAlert>) {
+        if (!config.isComplete || isMarkingRead) return
+        val unreadTargets = targets
+            .filter { !it.read }
+            .distinctBy { Triple(it.symbol, it.period, it.signalType) }
+        if (unreadTargets.isEmpty()) return
+
+        isMarkingRead = true
+        try {
+            val allUpdated = unreadTargets.all { alert ->
+                signalApiClient.setReadStatus(config, alert, read = true)
+            }
+            if (allUpdated) {
+                val updatedAlerts = alerts.withReadStatus(unreadTargets, read = true)
+                alerts = updatedAlerts
+                status = status.copy(unreadCount = updatedAlerts.count { !it.read })
+                Toast.makeText(context, "已标记为已读", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "设置已读失败", Toast.LENGTH_SHORT).show()
+            }
+        } catch (_: Exception) {
+            Toast.makeText(context, "设置已读失败", Toast.LENGTH_SHORT).show()
+        } finally {
+            isMarkingRead = false
         }
     }
 
@@ -177,6 +207,11 @@ private fun WatchTowerApp(
                         refreshSignals()
                     }
                 },
+                onMarkAllRead = {
+                    refreshScope.launch {
+                        markAlertsRead(alerts.unreadAlerts())
+                    }
+                },
                 onOpenConfig = { showConfig = true }
             )
             if (showConfig || !config.isComplete) {
@@ -194,6 +229,11 @@ private fun WatchTowerApp(
                 DashboardScreen(
                     config = config,
                     alerts = alerts,
+                    onMarkRead = { targets ->
+                        refreshScope.launch {
+                            markAlertsRead(targets)
+                        }
+                    },
                     onConfigChanged = {
                         config = it
                         onPersistConfig(it)
@@ -209,6 +249,7 @@ private fun StatusBar(
     status: MonitorStatus,
     canRefresh: Boolean,
     onRefresh: () -> Unit,
+    onMarkAllRead: () -> Unit,
     onOpenConfig: () -> Unit
 ) {
     val unreadContainerColor = if (status.unreadCount > 0) {
@@ -254,6 +295,7 @@ private fun StatusBar(
                     text = "未读 ${status.unreadCount}",
                     modifier = Modifier
                         .background(unreadContainerColor, RoundedCornerShape(999.dp))
+                        .clickable(enabled = status.unreadCount > 0, onClick = onMarkAllRead)
                         .padding(horizontal = 8.dp, vertical = 3.dp),
                     style = MaterialTheme.typography.labelMedium,
                     color = unreadTextColor,
@@ -526,6 +568,7 @@ private fun SwitchRow(
 private fun DashboardScreen(
     config: WatchTowerConfig,
     alerts: List<SignalAlert>,
+    onMarkRead: (List<SignalAlert>) -> Unit,
     onConfigChanged: (WatchTowerConfig) -> Unit
 ) {
     var settingsGroupId by remember { mutableStateOf<String?>(null) }
@@ -545,6 +588,7 @@ private fun DashboardScreen(
             GroupTimelinePanel(
                 group = group,
                 alerts = alerts,
+                onMarkRead = onMarkRead,
                 onOpenSettings = if (config.groups.any { it.id == group.id }) {
                     { settingsGroupId = group.id }
                 } else {
@@ -576,6 +620,7 @@ private fun DashboardScreen(
 private fun GroupTimelinePanel(
     group: WatchGroup,
     alerts: List<SignalAlert>,
+    onMarkRead: (List<SignalAlert>) -> Unit,
     onOpenSettings: (() -> Unit)?
 ) {
     val visibleRows = group.toVisibleTimelineRows(alerts)
@@ -594,6 +639,7 @@ private fun GroupTimelinePanel(
             GroupHeader(
                 group = group,
                 unreadCount = group.unreadCount(alerts),
+                onMarkRead = { onMarkRead(group.unreadAlerts(alerts)) },
                 onOpenSettings = onOpenSettings
             )
             if (visibleRows.isEmpty() && group.view.showActiveOnly && group.periods.isNotEmpty()) {
@@ -605,7 +651,10 @@ private fun GroupTimelinePanel(
                 )
             }
             visibleRows.forEach { row ->
-                PeriodTimelineRowView(row = row)
+                PeriodTimelineRowView(
+                    row = row,
+                    onMarkRead = { onMarkRead(group.unreadAlerts(alerts, period = row.period)) }
+                )
             }
         }
     }
@@ -615,6 +664,7 @@ private fun GroupTimelinePanel(
 private fun GroupHeader(
     group: WatchGroup,
     unreadCount: Int,
+    onMarkRead: () -> Unit,
     onOpenSettings: (() -> Unit)?
 ) {
     Row(
@@ -640,8 +690,12 @@ private fun GroupHeader(
             if (unreadCount > 0) {
                 Text(
                     text = "未读 $unreadCount",
+                    modifier = Modifier
+                        .background(Color(0xFFFDE68A), RoundedCornerShape(999.dp))
+                        .clickable(onClick = onMarkRead)
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFFDC2626),
+                    color = Color(0xFF713F12),
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -760,7 +814,10 @@ private fun GroupSettingsSheet(
 }
 
 @Composable
-private fun PeriodTimelineRowView(row: PeriodTimelineRow) {
+private fun PeriodTimelineRowView(
+    row: PeriodTimelineRow,
+    onMarkRead: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -768,10 +825,18 @@ private fun PeriodTimelineRowView(row: PeriodTimelineRow) {
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val unreadColor = Color(0xFFDC2626)
+        val unreadColor = Color(0xFF713F12)
+        val periodModifier = if (row.unread) {
+            Modifier
+                .width(34.dp)
+                .background(Color(0xFFFDE68A), RoundedCornerShape(4.dp))
+                .clickable(onClick = onMarkRead)
+        } else {
+            Modifier.width(34.dp)
+        }
         Text(
             text = row.period,
-            modifier = Modifier.width(34.dp),
+            modifier = periodModifier,
             style = MaterialTheme.typography.labelMedium,
             color = if (row.unread) unreadColor else MaterialTheme.colorScheme.onSurface,
             fontWeight = if (row.unread) FontWeight.Bold else FontWeight.SemiBold
