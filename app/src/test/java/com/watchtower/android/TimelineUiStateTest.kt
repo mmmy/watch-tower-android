@@ -83,6 +83,28 @@ class TimelineUiStateTest {
     }
 
     @Test
+    fun configuredTimelineBarsExtendsVisibleSignalWindow() {
+        val hourMillis = 60L * 60 * 1000
+        val nowMillis = 120L * hourMillis
+        val group = WatchGroup(
+            id = "btc",
+            name = "BTC",
+            symbol = "BTCUSDT",
+            periods = listOf("60"),
+            signalTypes = listOf("tdMd"),
+            enabled = true,
+            timelineBars = 120
+        )
+        val alerts = listOf(
+            SignalAlert("BTCUSDT", "60", "tdMd", SignalSide.Bullish, nowMillis - 90L * hourMillis, read = false)
+        )
+
+        val rows = group.toTimelineRows(alerts, nowMillis)
+
+        assertEquals(29, rows.single().normalizedMarkers.single().slot)
+    }
+
+    @Test
     fun activeOnlyViewKeepsConfiguredRowsWhenDisabled() {
         val group = WatchGroup(
             id = "btc",

@@ -47,6 +47,7 @@ object ConfigYamlParser {
                     "id" to group.id,
                     "name" to group.name,
                     "symbol" to group.symbol,
+                    "timeline_bars" to coerceTimelineBars(group.timelineBars),
                     "periods" to group.periods,
                     "signal_types" to group.signalTypes,
                     "view" to mapOf(
@@ -79,6 +80,9 @@ object ConfigYamlParser {
                 periods = group.stringListValue("periods"),
                 signalTypes = group.stringListValue("signal_types"),
                 enabled = group.booleanValue("enabled", defaultValue = true),
+                timelineBars = coerceTimelineBars(
+                    group.intValue("timeline_bars", defaultValue = DEFAULT_TIMELINE_BARS)
+                ),
                 view = WatchGroupView(
                     showActiveOnly = group.mapValue("view")
                         .booleanValue("show_active_only", defaultValue = false),

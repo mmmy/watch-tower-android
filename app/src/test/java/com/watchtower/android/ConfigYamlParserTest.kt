@@ -23,6 +23,7 @@ class ConfigYamlParserTest {
             - id: group-1
               name: BTC Main
               symbol: BTCUSDT
+              timeline_bars: 120
               view:
                 show_active_only: true
                 row_sort_mode: progress_recent_first
@@ -54,12 +55,14 @@ class ConfigYamlParserTest {
         assertTrue(config.soundEnabled)
         assertEquals(2, config.groups.size)
         assertEquals("BTC Main", config.groups[0].name)
+        assertEquals(120, config.groups[0].timelineBars)
         assertEquals(listOf("10D", "W", "720"), config.groups[0].periods)
         assertEquals(listOf("tdMd"), config.groups[0].signalTypes)
         assertTrue(config.groups[0].view.showActiveOnly)
         assertEquals(WatchGroupRowSortMode.ProgressRecentFirst, config.groups[0].view.rowSortMode)
         assertTrue(config.groups[0].enabled)
         assertEquals("vegas", config.groups[1].signalTypes.single())
+        assertEquals(60, config.groups[1].timelineBars)
         assertFalse(config.groups[1].view.showActiveOnly)
         assertEquals(WatchGroupRowSortMode.ConfigOrder, config.groups[1].view.rowSortMode)
         assertFalse(config.groups[1].enabled)
@@ -78,6 +81,7 @@ class ConfigYamlParserTest {
                     periods = listOf("60"),
                     signalTypes = listOf("vegas"),
                     enabled = true,
+                    timelineBars = 120,
                     view = WatchGroupView(
                         showActiveOnly = true,
                         rowSortMode = WatchGroupRowSortMode.ProgressRecentFirst
@@ -88,6 +92,7 @@ class ConfigYamlParserTest {
 
         val reparsed = ConfigYamlParser.parse(ConfigYamlParser.dump(config))
 
+        assertEquals(120, reparsed.groups.single().timelineBars)
         assertTrue(reparsed.groups.single().view.showActiveOnly)
         assertEquals(WatchGroupRowSortMode.ProgressRecentFirst, reparsed.groups.single().view.rowSortMode)
     }

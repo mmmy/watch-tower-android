@@ -38,6 +38,7 @@ data class WatchGroup(
     val periods: List<String>,
     val signalTypes: List<String>,
     val enabled: Boolean,
+    val timelineBars: Int = DEFAULT_TIMELINE_BARS,
     val view: WatchGroupView = WatchGroupView()
 )
 
@@ -69,11 +70,12 @@ data class TimelineMarker(
 data class PeriodTimelineRow(
     val period: String,
     val markers: List<TimelineMarker>,
-    val unread: Boolean = false
+    val unread: Boolean = false,
+    val timelineBars: Int = DEFAULT_TIMELINE_BARS
 ) {
     val normalizedMarkers: List<TimelineMarker>
         get() = markers.map { marker ->
-            marker.copy(slot = marker.slot.coerceIn(0, TIMELINE_SLOT_COUNT - 1))
+            marker.copy(slot = marker.slot.coerceIn(0, coerceTimelineBars(timelineBars) - 1))
         }
 }
 
@@ -91,22 +93,25 @@ fun WatchGroup.unreadCount(alerts: List<SignalAlert>): Int =
 fun WatchGroup.toTimelineRows(
     alerts: List<SignalAlert>,
     nowMillis: Long = System.currentTimeMillis()
-): List<PeriodTimelineRow> =
-    periods.map { period ->
+): List<PeriodTimelineRow> {
+    val slotCount = coerceTimelineBars(timelineBars)
+    return periods.map { period ->
         val periodAlerts = alerts.filter { alert ->
             alert.symbol == symbol &&
                 alert.period == period &&
                 alert.signalType in signalTypes
         }
         val visibleMarkers = periodAlerts.mapNotNull { alert ->
-            alert.toTimelineMarker(period = period, nowMillis = nowMillis)
+            alert.toTimelineMarker(period = period, nowMillis = nowMillis, slotCount = slotCount)
         }
         PeriodTimelineRow(
             period = period,
             markers = visibleMarkers,
-            unread = visibleMarkers.isNotEmpty() && periodAlerts.any { !it.read }
+            unread = visibleMarkers.isNotEmpty() && periodAlerts.any { !it.read },
+            timelineBars = slotCount
         )
     }
+}
 
 fun WatchGroup.toVisibleTimelineRows(
     alerts: List<SignalAlert>,
@@ -133,17 +138,23 @@ fun WatchGroup.sortTimelineRows(rows: List<PeriodTimelineRow>): List<PeriodTimel
         .map { it.value }
 }
 
-const val TIMELINE_SLOT_COUNT = 60
+const val DEFAULT_TIMELINE_BARS = 60
+const val MIN_TIMELINE_BARS = 1
+const val MAX_TIMELINE_BARS = 500
+
+fun coerceTimelineBars(value: Int): Int =
+    value.coerceIn(MIN_TIMELINE_BARS, MAX_TIMELINE_BARS)
 
 private fun SignalAlert.toTimelineMarker(
     period: String,
-    nowMillis: Long
+    nowMillis: Long,
+    slotCount: Int
 ): TimelineMarker? {
     val periodMillis = periodDurationMillis(period) ?: return null
     val barsAgo = ((nowMillis - triggerTimeMillis).coerceAtLeast(0L) / periodMillis).toInt()
-    if (barsAgo >= TIMELINE_SLOT_COUNT) return null
+    if (barsAgo >= slotCount) return null
     return TimelineMarker(
-        slot = TIMELINE_SLOT_COUNT - 1 - barsAgo,
+        slot = slotCount - 1 - barsAgo,
         side = side
     )
 }

@@ -622,6 +622,10 @@ private fun GroupSettingsSheet(
     onDismissRequest: () -> Unit,
     onGroupChanged: (WatchGroup) -> Unit
 ) {
+    var timelineBarsText by remember(group.id, group.timelineBars) {
+        mutableStateOf(group.timelineBars.toString())
+    }
+
     ModalBottomSheet(onDismissRequest = onDismissRequest) {
         Column(
             modifier = Modifier
@@ -672,6 +676,20 @@ private fun GroupSettingsSheet(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            OutlinedTextField(
+                value = timelineBarsText,
+                onValueChange = { value ->
+                    timelineBarsText = value.filter { it.isDigit() }
+                    timelineBarsText.toIntOrNull()?.let { bars ->
+                        onGroupChanged(group.copy(timelineBars = coerceTimelineBars(bars)))
+                    }
+                },
+                label = { Text("时间窗口根数") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                supportingText = { Text("显示最近 $MIN_TIMELINE_BARS-$MAX_TIMELINE_BARS 根 K 线/周期") },
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -695,6 +713,7 @@ private fun PeriodTimelineRowView(row: PeriodTimelineRow) {
         )
         TimelineRail(
             markers = row.normalizedMarkers,
+            timelineBars = row.timelineBars,
             modifier = Modifier
                 .weight(1f)
                 .height(16.dp)
@@ -705,11 +724,13 @@ private fun PeriodTimelineRowView(row: PeriodTimelineRow) {
 @Composable
 private fun TimelineRail(
     markers: List<TimelineMarker>,
+    timelineBars: Int,
     modifier: Modifier = Modifier
 ) {
     val railColor = Color(0xFFE5E7EB)
     val bullishColor = Color(0xFF16A34A)
     val bearishColor = Color(0xFFDC2626)
+    val slotCount = coerceTimelineBars(timelineBars)
 
     Canvas(
         modifier = modifier.background(Color.Transparent)
@@ -720,12 +741,12 @@ private fun TimelineRail(
             size = size
         )
 
-        val markerWidth = (size.width / TIMELINE_SLOT_COUNT).coerceAtLeast(4f)
+        val markerWidth = (size.width / slotCount).coerceAtLeast(4f)
         markers.forEach { marker ->
-            val x = if (TIMELINE_SLOT_COUNT <= 1) {
+            val x = if (slotCount <= 1) {
                 0f
             } else {
-                (marker.slot / (TIMELINE_SLOT_COUNT - 1).toFloat()) * (size.width - markerWidth)
+                (marker.slot / (slotCount - 1).toFloat()) * (size.width - markerWidth)
             }
             drawRect(
                 color = when (marker.side) {
