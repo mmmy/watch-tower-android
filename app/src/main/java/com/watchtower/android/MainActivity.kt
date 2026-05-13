@@ -153,11 +153,19 @@ private fun WatchTowerApp(
 
         isMarkingRead = true
         try {
-            val allUpdated = unreadTargets.all { alert ->
-                signalApiClient.setReadStatus(config, alert, read = true)
+            val result = signalApiClient.setReadStatuses(config, unreadTargets, read = true)
+            val updatedTargets = unreadTargets.filter { alert ->
+                result.results.any { item ->
+                    item.success &&
+                        item.read &&
+                        item.symbol == alert.symbol &&
+                        item.period == alert.period &&
+                        item.signalType == alert.signalType
+                }
             }
-            if (allUpdated) {
-                val updatedAlerts = alerts.withReadStatus(unreadTargets, read = true)
+
+            if (updatedTargets.isNotEmpty()) {
+                val updatedAlerts = alerts.withReadStatus(updatedTargets, read = true)
                 alerts = updatedAlerts
                 widgetSignalSnapshotStore.save(
                     WidgetSignalSnapshot(
@@ -167,7 +175,12 @@ private fun WatchTowerApp(
                 )
                 status = status.copy(unreadCount = updatedAlerts.count { !it.read })
                 WatchTowerWidgetProvider.refreshAll(context.applicationContext)
-                Toast.makeText(context, "已标记为已读", Toast.LENGTH_SHORT).show()
+                val message = if (updatedTargets.size == unreadTargets.size) {
+                    "已标记为已读"
+                } else {
+                    "部分标记失败"
+                }
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(context, "设置已读失败", Toast.LENGTH_SHORT).show()
             }

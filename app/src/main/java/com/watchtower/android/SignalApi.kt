@@ -2,6 +2,7 @@ package com.watchtower.android
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -44,22 +45,21 @@ data class SignalRequest(
     }
 }
 
-data class SignalReadStatusRequest(
+data class SignalReadStatusItem(
     val symbol: String,
     val period: String,
     val signalType: String,
     val read: Boolean
 ) {
-    fun toJson(): String = JSONObject()
+    fun toJsonObject(): JSONObject = JSONObject()
         .put("symbol", symbol)
         .put("period", period)
         .put("signalType", signalType)
         .put("read", read)
-        .toString()
 
     companion object {
-        fun fromAlert(alert: SignalAlert, read: Boolean): SignalReadStatusRequest =
-            SignalReadStatusRequest(
+        fun fromAlert(alert: SignalAlert, read: Boolean): SignalReadStatusItem =
+            SignalReadStatusItem(
                 symbol = alert.symbol,
                 period = alert.period,
                 signalType = alert.signalType,
@@ -67,6 +67,36 @@ data class SignalReadStatusRequest(
             )
     }
 }
+
+data class SignalReadStatusBatchRequest(
+    val items: List<SignalReadStatusItem>
+) {
+    fun toJson(): String = JSONObject()
+        .put("items", JSONArray(items.map { it.toJsonObject() }))
+        .toString()
+
+    companion object {
+        fun fromAlerts(alerts: List<SignalAlert>, read: Boolean): SignalReadStatusBatchRequest =
+            SignalReadStatusBatchRequest(
+                items = alerts.map { alert -> SignalReadStatusItem.fromAlert(alert, read = read) }
+            )
+    }
+}
+
+data class SignalReadStatusBatchResult(
+    val symbol: String,
+    val period: String,
+    val signalType: String,
+    val read: Boolean,
+    val success: Boolean,
+    val reason: String?
+)
+
+data class SignalReadStatusBatchResponse(
+    val success: Int,
+    val failed: Int,
+    val results: List<SignalReadStatusBatchResult>
+)
 
 object SignalResponseParser {
     fun parse(response: String): List<SignalAlert> {
@@ -101,6 +131,32 @@ object SignalResponseParser {
         }
 
         return alerts
+    }
+}
+
+object SignalReadStatusBatchResponseParser {
+    fun parse(response: String): SignalReadStatusBatchResponse {
+        val root = JSONObject(response)
+        val resultsJson = root.optJSONArray("results") ?: JSONArray()
+        val results = mutableListOf<SignalReadStatusBatchResult>()
+
+        for (index in 0 until resultsJson.length()) {
+            val item = resultsJson.optJSONObject(index) ?: continue
+            results += SignalReadStatusBatchResult(
+                symbol = item.optString("symbol"),
+                period = item.optString("period"),
+                signalType = item.optString("signalType"),
+                read = item.optBoolean("read"),
+                success = item.optBoolean("success"),
+                reason = item.optString("reason").takeIf { it.isNotBlank() }
+            )
+        }
+
+        return SignalReadStatusBatchResponse(
+            success = root.optInt("success"),
+            failed = root.optInt("failed"),
+            results = results
+        )
     }
 }
 
@@ -140,10 +196,14 @@ class SignalApiClient {
         }
     }
 
-    suspend fun setReadStatus(config: WatchTowerConfig, alert: SignalAlert, read: Boolean): Boolean =
+    suspend fun setReadStatuses(
+        config: WatchTowerConfig,
+        alerts: List<SignalAlert>,
+        read: Boolean
+    ): SignalReadStatusBatchResponse =
         withContext(Dispatchers.IO) {
-            val request = SignalReadStatusRequest.fromAlert(alert, read = read)
-            val endpoint = "${config.baseUrl.trimEnd('/')}/api/open/watch-list/symbol-alert/read-status"
+            val request = SignalReadStatusBatchRequest.fromAlerts(alerts, read = read)
+            val endpoint = "${config.baseUrl.trimEnd('/')}/api/open/watch-list/symbol-alert/read-status/batch"
             val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 10_000
@@ -168,7 +228,7 @@ class SignalApiClient {
                 if (responseCode !in 200..299) {
                     throw IllegalStateException("HTTP $responseCode")
                 }
-                body.trim().equals("true", ignoreCase = true)
+                SignalReadStatusBatchResponseParser.parse(body)
             } finally {
                 connection.disconnect()
             }

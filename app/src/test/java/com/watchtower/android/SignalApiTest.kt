@@ -83,7 +83,7 @@ class SignalApiTest {
     }
 
     @Test
-    fun serializesReadStatusRequestFromAlert() {
+    fun serializesReadStatusBatchRequestFromAlerts() {
         val alert = SignalAlert(
             symbol = "BTCUSDT",
             period = "60",
@@ -93,12 +93,51 @@ class SignalApiTest {
             read = false
         )
 
-        val json = JSONObject(SignalReadStatusRequest.fromAlert(alert, read = true).toJson())
+        val json = JSONObject(SignalReadStatusBatchRequest.fromAlerts(listOf(alert), read = true).toJson())
+        val item = json.getJSONArray("items").getJSONObject(0)
 
-        assertEquals("BTCUSDT", json.getString("symbol"))
-        assertEquals("60", json.getString("period"))
-        assertEquals("tdMd", json.getString("signalType"))
-        assertTrue(json.getBoolean("read"))
+        assertEquals(1, json.getJSONArray("items").length())
+        assertEquals("BTCUSDT", item.getString("symbol"))
+        assertEquals("60", item.getString("period"))
+        assertEquals("tdMd", item.getString("signalType"))
+        assertTrue(item.getBoolean("read"))
+    }
+
+    @Test
+    fun parsesReadStatusBatchResponseResults() {
+        val response = """
+            {
+              "success": 1,
+              "failed": 1,
+              "results": [
+                {
+                  "symbol": "BTCUSDT",
+                  "period": "60",
+                  "signalType": "tdMd",
+                  "read": true,
+                  "success": true
+                },
+                {
+                  "symbol": "ETHUSDT",
+                  "period": "15",
+                  "signalType": "vegas",
+                  "read": true,
+                  "success": false,
+                  "reason": "signal_not_found"
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = SignalReadStatusBatchResponseParser.parse(response)
+
+        assertEquals(1, result.success)
+        assertEquals(1, result.failed)
+        assertEquals(2, result.results.size)
+        assertTrue(result.results[0].success)
+        assertEquals("BTCUSDT", result.results[0].symbol)
+        assertFalse(result.results[1].success)
+        assertEquals("signal_not_found", result.results[1].reason)
     }
 
     @Test
