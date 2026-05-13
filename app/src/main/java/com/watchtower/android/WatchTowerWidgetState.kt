@@ -60,7 +60,6 @@ fun WatchTowerConfig.toWidgetState(
         if (periodMillis < WIDGET_MIN_PERIOD_MILLIS) return@mapNotNull null
         val barsAgo = barsAgoForPeriod(alert.period, alert.triggerTimeMillis, nowMillis)
             ?: return@mapNotNull null
-        if (barsAgo >= coerceTimelineBars(group.timelineBars)) return@mapNotNull null
 
         WidgetAlertRow(
             period = alert.period,
@@ -96,5 +95,5 @@ private fun WatchGroup.matches(alert: SignalAlert): Boolean =
         alert.period in periods &&
         alert.signalType in signalTypes
 
-const val WIDGET_MAX_ROWS = 6
+const val WIDGET_MAX_ROWS = 20
 private const val WIDGET_MIN_PERIOD_MILLIS = 30L * 60 * 1000

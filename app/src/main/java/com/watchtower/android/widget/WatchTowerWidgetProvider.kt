@@ -18,6 +18,7 @@ import com.watchtower.android.SharedPreferencesConfigStorage
 import com.watchtower.android.SignalSide
 import com.watchtower.android.WatchTowerConfigStore
 import com.watchtower.android.WatchTowerWidgetState
+import com.watchtower.android.WIDGET_MAX_ROWS
 import com.watchtower.android.WidgetSignalSnapshotStore
 import com.watchtower.android.toWidgetState
 import java.text.SimpleDateFormat
@@ -25,6 +26,13 @@ import java.util.Date
 import java.util.Locale
 
 class WatchTowerWidgetProvider : AppWidgetProvider() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+            refreshAll(context)
+        }
+    }
 
     override fun onUpdate(
         context: Context,
@@ -80,7 +88,7 @@ class WatchTowerWidgetProvider : AppWidgetProvider() {
             if (rows.isEmpty()) return flowText
 
             val builder = SpannableStringBuilder()
-            rows.take(6).forEachIndexed { index, row ->
+            rows.take(WIDGET_MAX_ROWS).forEachIndexed { index, row ->
                 if (index > 0) builder.append("  ")
 
                 val periodStart = builder.length

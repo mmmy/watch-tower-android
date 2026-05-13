@@ -53,6 +53,43 @@ class WatchTowerWidgetStateTest {
     }
 
     @Test
+    fun includesThirtyMinuteAndAbovePeriodsBeyondTimelineWindow() {
+        val periodMillis = 240L * 60 * 1000
+        val nowMillis = 200L * periodMillis
+        val config = WatchTowerConfig.default().copy(
+            widgetGroupId = "btc",
+            groups = listOf(
+                WatchGroup(
+                    id = "btc",
+                    name = "BTC Main",
+                    symbol = "BTCUSDT",
+                    periods = listOf("240"),
+                    signalTypes = listOf("vegas"),
+                    enabled = true,
+                    timelineBars = 60
+                )
+            )
+        )
+        val alerts = listOf(
+            SignalAlert(
+                symbol = "BTCUSDT",
+                period = "240",
+                signalType = "vegas",
+                side = SignalSide.Bullish,
+                triggerTimeMillis = nowMillis - 171L * periodMillis,
+                read = false
+            )
+        )
+
+        val state = config.toWidgetState(alerts = alerts, nowMillis = nowMillis)
+
+        assertEquals(
+            listOf(WidgetAlertRow("240", "vegas", SignalSide.Bullish, barsAgo = 171, unread = true)),
+            state.rows
+        )
+    }
+
+    @Test
     fun fallsBackToFirstEnabledGroupWhenWidgetGroupIsMissing() {
         val config = WatchTowerConfig.default().copy(
             widgetGroupId = "missing",
@@ -84,5 +121,21 @@ class WatchTowerWidgetStateTest {
         assertEquals("BTC Main", state.titleText)
         assertEquals("同步 12:30", state.syncText("12:30"))
         assertEquals("30 0K  60 2K", state.flowText)
+    }
+
+    @Test
+    fun formatsUpToTwentyWidgetRows() {
+        val state = WatchTowerWidgetState(
+            groupName = "BTC Main",
+            symbol = "BTCUSDT",
+            unreadCount = 21,
+            rows = (0..20).map { index ->
+                WidgetAlertRow("60", "vegas", SignalSide.Bullish, barsAgo = index, unread = true)
+            }
+        )
+
+        val expectedText = (0..19).joinToString("  ") { index -> "60 ${index}K" }
+
+        assertEquals(expectedText, state.flowText)
     }
 }
